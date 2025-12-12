@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Campaign Performance Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+        .upload-screen { text-align: center; background: white; padding: 60px 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .upload-screen h1 { font-size: 2.5rem; color: #333; margin-bottom: 20px; }
+        .upload-screen p { color: #666; margin-bottom: 30px; font-size: 1.1rem; }
+        .upload-btn { display: inline-block; padding: 15px 40px; background: #667eea; color: white; border-radius: 10px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: all 0.3s; }
+        .upload-btn:hover { background: #5568d3; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4); }
+        input[type="file"] { display: none; }
+        .slide-container { background: white; border-radius: 20px; padding: 50px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); min-height: 600px; display: none; }
+        .slide-container.active { display: block; }
+        .slide-header { margin-bottom: 40px; }
+        .slide-header h2 { font-size: 2.5rem; color: #333; margin-bottom: 10px; }
+        .slide-header p { color: #666; font-size: 1.2rem; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 30px; }
+        .metric-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; color: white; text-align: center; }
+        .metric-card h3 { font-size: 2.5rem; margin-bottom: 5px; }
+        .metric-card p { opacity: 0.9; font-size: 0.9rem; }
+        .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 30px; }
+        .chart-container { background: #f8f9fa; padding: 20px; border-radius: 15px; }
+        .chart-container h3 { margin-bottom: 15px; color: #333; font-size: 1.2rem; }
+        .chart-container-full { background: #f8f9fa; padding: 20px; border-radius: 15px; margin-top: 30px; }
+        canvas { max-height: 300px !important; }
+        .channel-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-top: 30px; }
+        .channel-card { background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; }
+        .channel-card h4 { font-size: 0.9rem; color: #666; margin-bottom: 10px; }
+        .channel-card .number { font-size: 1.8rem; font-weight: bold; color: #667eea; }
+        .channel-card .cpa { font-size: 1.1rem; color: #764ba2; margin-top: 5px; }
+        .navigation { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; }
+        .nav-btn { padding: 12px 30px; background: #667eea; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .nav-btn:hover:not(:disabled) { background: #5568d3; transform: translateY(-2px); }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .dots { display: flex; gap: 10px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; cursor: pointer; transition: all 0.3s; }
+        .dot.active { background: #667eea; width: 30px; border-radius: 6px; }
+        .slide-counter { text-align: center; margin-top: 15px; color: white; font-weight: 500; }
+        .insight-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 15px; color: white; margin-top: 30px; }
+        .insight-box h3 { margin-bottom: 15px; font-size: 1.5rem; }
+        .insight-box ul { list-style: none; }
+        .insight-box li { margin: 10px 0; padding-left: 25px; position: relative; }
+        .insight-box li:before { content: "✓"; position: absolute; left: 0; font-weight: bold; }
+        .info-boxes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 30px; }
+        .info-box { background: #f8f9fa; padding: 20px; border-radius: 15px; text-align: center; }
+        .info-box h4 { color: #667eea; margin-bottom: 10px; font-size: 1.1rem; }
+        .info-box p { color: #666; font-size: 0.9rem; }
+        .findings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 30px; }
+        .finding-card { padding: 25px; border-radius: 15px; }
+        .finding-card.positive { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .finding-card.warning { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); color: white; }
+        .finding-card h3 { margin-bottom: 15px; font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
+        .finding-card ul { list-style: none; }
+        .finding-card li { margin: 10px 0; padding-left: 20px; position: relative; }
+        .finding-card li:before { content: "•"; position: absolute; left: 0; font-size: 1.5rem; }
+        .recommendations-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 30px; }
+        .rec-card { background: #f8f9fa; padding: 25px; border-radius: 15px; border-left: 4px solid #667eea; }
+        .rec-card h3 { color: #667eea; margin-bottom: 15px; font-size: 1.3rem; }
+        .rec-card ul { list-style: none; }
+        .rec-card li { margin: 8px 0; padding-left: 20px; position: relative; color: #333; }
+        .rec-card li:before { content: "→"; position: absolute; left: 0; color: #667eea; }
+        .impact-box { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 15px; margin-top: 30px; text-align: center; }
+        .impact-box h3 { font-size: 1.8rem; margin-bottom: 15px; }
+        .impact-box p { font-size: 1.2rem; opacity: 0.95; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="uploadScreen" class="upload-screen">
+            <h1>📊 Marketing Campaign Dashboard</h1>
+            <p>Upload your Excel file to begin interactive analysis</p>
+            <label for="fileInput" class="upload-btn">Choose File</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+        </div>
+
+        <div id="slide1" class="slide-container">
+            <div class="slide-header">
+                <h2>Campaign Performance Overview</h2>
+                <p>Multi-Channel Analysis Dashboard</p>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3 id="totalImpressions">-</h3>
+                    <p>Impressions</p>
+                </div>
+                <div class="metric-card">
+                    <h3 id="totalClicks">-</h3>
+                    <p>Clicks</p>
+                </div>
+                <div class="metric-card">
+                    <h3 id="totalConversions">-</h3>
+                    <p>Conversions</p>
+                </div>
+                <div class="metric-card">
+                    <h3 id="totalCost">-</h3>
+                    <p>Total Cost</p>
+                </div>
+            </div>
+            <div class="insight-box">
+                <h3>📈 Campaign Highlights</h3>
+                <ul>
+                    <li>Balanced performance across all 5 channels</li>
+                    <li>308,748 total conversions analyzed</li>
+                    <li>Northeast region leads in both volume and efficiency</li>
+                    <li>Clear optimization opportunities identified</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="slide2" class="slide-container">
+            <div class="slide-header">
+                <h2>Channel Performance</h2>
+                <p>Conversions & CPA by Marketing Channel</p>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Conversions by Channel</h3>
+                    <canvas id="channelConvChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Cost Per Acquisition</h3>
+                    <canvas id="channelCPAChart"></canvas>
+                </div>
+            </div>
+            <div class="channel-cards" id="channelCards"></div>
+        </div>
+
+        <div id="slide3" class="slide-container">
+            <div class="slide-header">
+                <h2>Performance Trends Over Time</h2>
+                <p>Daily Conversions and Cost Analysis</p>
+            </div>
+            <div class="chart-container-full">
+                <h3>Daily Performance Trends</h3>
+                <canvas id="trendsChart"></canvas>
+            </div>
+            <div class="info-boxes">
+                <div class="info-box">
+                    <h4>📈 Growth Periods</h4>
+                    <p>Identify peak performance days for scaling opportunities</p>
+                </div>
+                <div class="info-box">
+                    <h4>💰 Cost Efficiency</h4>
+                    <p>Monitor cost-to-conversion ratio trends</p>
+                </div>
+                <div class="info-box">
+                    <h4>📅 Seasonality</h4>
+                    <p>Day-of-week patterns and timing optimization</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="slide4" class="slide-container">
+            <div class="slide-header">
+                <h2>Regional Performance</h2>
+                <p>Geographic Distribution & Efficiency</p>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Conversions by Region</h3>
+                    <canvas id="regionPieChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Regional CPA Comparison</h3>
+                    <canvas id="regionCPAChart"></canvas>
+                </div>
+            </div>
+            <div class="insight-box">
+                <h3>🎯 Regional Insights</h3>
+                <ul>
+                    <li>Northeast: 80,633 conversions at ~$14.80 CPA (best performer)</li>
+                    <li>All regions within 9% variance - excellent balance</li>
+                    <li>South shows opportunity for CPA optimization</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="slide5" class="slide-container">
+            <div class="slide-header">
+                <h2>Key Findings & Insights</h2>
+                <p>What's Driving Campaign Performance</p>
+            </div>
+            <div class="findings-grid">
+                <div class="finding-card positive">
+                    <h3>🎯 Top Performers</h3>
+                    <ul id="topPerformers"></ul>
+                </div>
+                <div class="finding-card warning">
+                    <h3>⚠️ Optimization Opportunities</h3>
+                    <ul id="opportunities"></ul>
+                </div>
+            </div>
+            <div class="insight-box">
+                <h3>💡 Strategic Insight</h3>
+                <ul>
+                    <li>Exceptional balance across channels (only 13% variance)</li>
+                    <li>No over-dependence on single platform reduces risk</li>
+                    <li>Northeast provides blueprint for regional optimization</li>
+                    <li>Instagram shows 7,730 conversion gap with leader</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="slide6" class="slide-container">
+            <div class="slide-header">
+                <h2>Strategic Recommendations</h2>
+                <p>Optimization Roadmap for Growth</p>
+            </div>
+            <div class="recommendations-grid">
+                <div class="rec-card">
+                    <h3>🚀 Scale Top Performers</h3>
+                    <ul>
+                        <li>Increase Facebook budget by 10-15%</li>
+                        <li>Expected gain: 6,500-10,000 conversions</li>
+                        <li>Maintain Email's low CPA advantage</li>
+                        <li>Low risk, proven performer</li>
+                    </ul>
+                </div>
+                <div class="rec-card">
+                    <h3>📱 Optimize Instagram</h3>
+                    <ul>
+                        <li>Close 7,730 conversion gap with leader</li>
+                        <li>Test Stories, Reels, and Feed formats</li>
+                        <li>Refine audience targeting</li>
+                        <li>Target 20-30% improvement</li>
+                    </ul>
+                </div>
+                <div class="rec-card">
+                    <h3>🌎 Regional Excellence</h3>
+                    <ul>
+                        <li>Replicate Northeast playbook to South</li>
+                        <li>Reduce South CPA from $16.40 to $15.50</li>
+                        <li>Deploy localized messaging</li>
+                        <li>Potential savings: $44,000+</li>
+                    </ul>
+                </div>
+                <div class="rec-card">
+                    <h3>📊 Measurement & Testing</h3>
+                    <ul>
+                        <li>Set channel-specific CPA targets</li>
+                        <li>Implement weekly performance reviews</li>
+                        <li>Track customer lifetime value</li>
+                        <li>A/B test creative variations</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="impact-box">
+                <h3>Expected Impact</h3>
+                <p>Target: 330,000-340,000 conversions (+7-10% growth)<br>
+                Timeline: 60 days | CPA Reduction: 3-5%</p>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">← Previous</button>
+            <div class="dots">
+                <span class="dot active" onclick="goToSlide(0)"></span>
+                <span class="dot" onclick="goToSlide(1)"></span>
+                <span class="dot" onclick="goToSlide(2)"></span>
+                <span class="dot" onclick="goToSlide(3)"></span>
+                <span class="dot" onclick="goToSlide(4)"></span>
+                <span class="dot" onclick="goToSlide(5)"></span>
+            </div>
+            <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+        </div>
+        <div class="slide-counter" id="slideCounter"></div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        let data = null;
+        const totalSlides = 6;
+
+        document.getElementById('fileInput').addEventListener('change', handleFile);
+
+        function handleFile(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const json = XLSX.utils.sheet_to_json(sheet);
+                processData(json);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processData(rawData) {
+            data = rawData.map(r => ({
+                date: r.Date,
+                channel: r.Channel,
+                region: r.Region,
+                impressions: parseInt(r.Impressions) || 0,
+                clicks: parseInt(r.Clicks) || 0,
+                conversions: parseInt(r.Conversions) || 0,
+                cost: parseFloat(r['Cost ($)']) || 0,
+                cpa: parseFloat(r['CPA ($)']) || 0
+            }));
+
+            document.getElementById('uploadScreen').style.display = 'none';
+            document.getElementById('slide1').classList.add('active');
+            updateSlide1();
+            updateSlide2();
+            updateSlide3();
+            updateSlide4();
+            updateSlide5();
+            updateNavigation();
+        }
+
+        function updateSlide1() {
+            const totalImpressions = data.reduce((sum, d) => sum + d.impressions, 0);
+            const totalClicks = data.reduce((sum, d) => sum + d.clicks, 0);
+            const totalConversions = data.reduce((sum, d) => sum + d.conversions, 0);
+            const totalCost = data.reduce((sum, d) => sum + d.cost, 0);
+
+            document.getElementById('totalImpressions').textContent = (totalImpressions / 1000000).toFixed(1) + 'M';
+            document.getElementById('totalClicks').textContent = (totalClicks / 1000).toFixed(0) + 'K';
+            document.getElementById('totalConversions').textContent = totalConversions.toLocaleString();
+            document.getElementById('totalCost').textContent = '$' + (totalCost / 1000).toFixed(0) + 'K';
+        }
+
+        function updateSlide2() {
+            const channelStats = {};
+            data.forEach(r => {
+                if (!channelStats[r.channel]) {
+                    channelStats[r.channel] = { conversions: 0, cost: 0 };
+                }
+                channelStats[r.channel].conversions += r.conversions;
+                channelStats[r.channel].cost += r.cost;
+            });
+
+            const channels = Object.keys(channelStats).map(ch => ({
+                channel: ch,
+                conversions: channelStats[ch].conversions,
+                cpa: (channelStats[ch].cost / channelStats[ch].conversions).toFixed(2)
+            })).sort((a, b) => b.conversions - a.conversions);
+
+            new Chart(document.getElementById('channelConvChart'), {
+                type: 'bar',
+                data: {
+                    labels: channels.map(c => c.channel),
+                    datasets: [{
+                        data: channels.map(c => c.conversions),
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            new Chart(document.getElementById('channelCPAChart'), {
+                type: 'bar',
+                data: {
+                    labels: channels.map(c => c.channel),
+                    datasets: [{
+                        data: channels.map(c => parseFloat(c.cpa)),
+                        backgroundColor: '#764ba2'
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            const cardsHTML = channels.map(c => `
+                <div class="channel-card">
+                    <h4>${c.channel}</h4>
+                    <div class="number">${c.conversions.toLocaleString()}</div>
+                    <div class="cpa">$${c.cpa}</div>
+                </div>
+            `).join('');
+            document.getElementById('channelCards').innerHTML = cardsHTML;
+        }
+
+        function updateSlide3() {
+            const dateMap = {};
+            data.forEach(r => {
+                if (!dateMap[r.date]) {
+                    dateMap[r.date] = { conversions: 0, cost: 0 };
+                }
+                dateMap[r.date].conversions += r.conversions;
+                dateMap[r.date].cost += r.cost;
+            });
+
+            const dates = Object.keys(dateMap).sort().slice(0, 30);
+            
+            new Chart(document.getElementById('trendsChart'), {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Conversions',
+                        data: dates.map(d => dateMap[d].conversions),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        yAxisID: 'y',
+                        tension: 0.4
+                    }, {
+                        label: 'Cost ($)',
+                        data: dates.map(d => dateMap[d].cost),
+                        borderColor: '#ec4899',
+                        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                        yAxisID: 'y1',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: { type: 'linear', position: 'left' },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function updateSlide4() {
+            const regionStats = {};
+            data.forEach(r => {
+                if (!regionStats[r.region]) {
+                    regionStats[r.region] = { conversions: 0, cost: 0 };
+                }
+                regionStats[r.region].conversions += r.conversions;
+                regionStats[r.region].cost += r.cost;
+            });
+
+            const regions = Object.keys(regionStats).map(rg => ({
+                region: rg,
+                conversions: regionStats[rg].conversions,
+                cpa: (regionStats[rg].cost / regionStats[rg].conversions).toFixed(2)
+            }));
+
+            const colors = {
+                'Northeast': '#3b82f6',
+                'Midwest': '#8b5cf6',
+                'South': '#ec4899',
+                'West': '#f59e0b'
+            };
+
+            new Chart(document.getElementById('regionPieChart'), {
+                type: 'pie',
+                data: {
+                    labels: regions.map(r => r.region),
+                    datasets: [{
+                        data: regions.map(r => r.conversions),
+                        backgroundColor: regions.map(r => colors[r.region])
+                    }]
+                }
+            });
+
+            const sortedRegions = regions.sort((a, b) => parseFloat(a.cpa) - parseFloat(b.cpa));
+            new Chart(document.getElementById('regionCPAChart'), {
+                type: 'bar',
+                data: {
+                    labels: sortedRegions.map(r => r.region),
+                    datasets: [{
+                        data: sortedRegions.map(r => parseFloat(r.cpa)),
+                        backgroundColor: sortedRegions.map(r => colors[r.region])
+                    }]
+                },
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function updateSlide5() {
+            const channelStats = {};
+            data.forEach(r => {
+                if (!channelStats[r.channel]) {
+                    channelStats[r.channel] = { conversions: 0, cost: 0 };
+                }
+                channelStats[r.channel].conversions += r.conversions;
+                channelStats[r.channel].cost += r.cost;
+            });
+
+            const channels = Object.keys(channelStats).map(ch => ({
+                channel: ch,
+                conversions: channelStats[ch].conversions,
+                cpa: (channelStats[ch].cost / channelStats[ch].conversions).toFixed(2)
+            })).sort((a, b) => b.conversions - a.conversions);
+
+            const topHTML = channels.slice(0, 3).map(c => 
+                `<li><strong>${c.channel}:</strong> ${c.conversions.toLocaleString()} conversions at $${c.cpa} CPA</li>`
+            ).join('');
+            document.getElementById('topPerformers').innerHTML = topHTML;
+
+            const oppHTML = channels.slice(-2).map(c => 
+                `<li><strong>${c.channel}:</strong> CPA of $${c.cpa} needs optimization</li>`
+            ).join('');
+            document.getElementById('opportunities').innerHTML = oppHTML + 
+                '<li><strong>Regional:</strong> South CPA 10.8% above Northeast</li>';
+        }
+
+        function changeSlide(direction) {
+            const slides = document.querySelectorAll('.slide-container');
+            slides[currentSlide].classList.remove('active');
+            currentSlide += direction;
+            if (currentSlide < 0) currentSlide = 0;
+            if (currentSlide >= totalSlides) currentSlide = totalSlides - 1;
+            slides[currentSlide].classList.add('active');
+            updateNavigation();
+        }
+
+        function goToSlide(index) {
+            const slides = document.querySelectorAll('.slide-container');
+            slides[currentSlide].classList.remove('active');
+            currentSlide = index;
+            slides[currentSlide].classList.add('active');
+            updateNavigation();
+        }
+
+        function updateNavigation() {
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+            document.querySelectorAll('.dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+            document.getElementById('slideCounter').textContent = `Slide ${currentSlide + 1} of ${totalSlides}`;
+        }
+    </script>
+</body>
+</html>
